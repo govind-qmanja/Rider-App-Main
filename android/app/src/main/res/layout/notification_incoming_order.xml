@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="12dp">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingBottom="8dp">
+
+        <TextView android:id="@+id/tv_restaurant_name" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Restaurant Name" android:textSize="16sp" android:textStyle="bold" android:textColor="@android:color/white" />
+
+        <TextView android:id="@+id/tv_order_details" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Order Details..." android:textSize="14sp" android:textColor="@android:color/white" android:maxLines="2" android:ellipsize="end" />
+    </LinearLayout>
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="end">
+
+        <Button android:id="@+id/btn_reject" style="?android:attr/borderlessButtonStyle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Stop Alert" android:textColor="#f5766dff" android:textStyle="bold" />
+
+        <Button android:id="@+id/btn_accept" style="?android:attr/borderlessButtonStyle" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Accept" android:textColor="#9df7a0ff" android:textStyle="bold" />
+    </LinearLayout>
+
+</LinearLayout>

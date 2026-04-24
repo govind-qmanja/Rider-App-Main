@@ -1,0 +1,98 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.qmanja.foods.riders"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:replace="android:maxSdkVersion"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="32" tools:replace="android:maxSdkVersion"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- WAKE LOCK & FULL SCREEN (CRITICAL for lock-screen notifications) -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD"/>
+    <!-- SERVICE & NOTIFICATIONS -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- Helps prevent app killing for background delivery tracking -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+
+    <application android:label="Qmanja Rider" tools:replace="android:label" android:icon="@mipmap/ic_launcher" android:requestLegacyExternalStorage="true">
+        <meta-data android:name="com.google.android.geo.API_KEY" android:value="AIzaSyCMkPnCQ4ebWlU6HqBu3iGybPLWciK7KAA"/>
+
+        <!-- Main Flutter activity -->
+        <activity android:name=".MainActivity" android:exported="true" android:launchMode="singleTop" android:theme="@style/LaunchTheme" android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode" android:hardwareAccelerated="true" android:windowSoftInputMode="adjustResize">
+            <meta-data android:name="io.flutter.embedding.android.NormalTheme" android:resource="@style/NormalTheme" />
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!-- Full-screen incoming order activity.
+             Shows over lock screen with Accept/Reject buttons.
+             Launched by the notification's fullScreenIntent.
+             Uses plain Activity with a non-AppCompat theme (IncomingOrderTheme). -->
+        <activity android:name=".IncomingOrderActivity" android:exported="false" android:launchMode="singleTop" android:theme="@style/IncomingOrderTheme" android:excludeFromRecents="true" android:taskAffinity="" android:showOnLockScreen="true" android:showWhenLocked="true" android:turnScreenOn="true" android:configChanges="orientation|keyboardHidden|keyboard|screenSize" />
+
+        <!-- Flutter background service for location tracking.
+             tools:replace overrides the plugin's default manifest since we need foregroundServiceType. -->
+        <service android:name="id.flutter.flutter_background_service.BackgroundService" android:foregroundServiceType="location" android:exported="true" tools:replace="android:foregroundServiceType"/>
+
+        <!-- Boot receiver (matches plugin's exported=true) -->
+        <receiver android:name="id.flutter.flutter_background_service.BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Custom FCM service: intercepts data messages at the native level
+             to show our custom notification with Accept/Reject buttons.
+             Priority 100 ensures this runs BEFORE OneSignal's service (priority -1). -->
+        <service android:name=".OrderFirebaseMessagingService" android:exported="false">
+            <intent-filter android:priority="100">
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+
+        <!-- BroadcastReceivers for custom notification Accept/Reject buttons.
+             Action strings MUST match OrderNotificationHelper.ACTION_ACCEPT / ACTION_REJECT -->
+        <receiver android:name=".AcceptOrderReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.qmanja.foods.riders.ACTION_ACCEPT_ORDER"/>
+            </intent-filter>
+        </receiver>
+
+        <receiver android:name=".RejectOrderReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.qmanja.foods.riders.ACTION_REJECT_ORDER"/>
+            </intent-filter>
+        </receiver>
+
+        <meta-data android:name="flutterEmbedding" android:value="2" />
+    </application>
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- For url_launcher (maps, phone) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL"/>
+            <data android:scheme="tel"/>
+        </intent>
+    </queries>
+</manifest>
