@@ -704,49 +704,75 @@ Future<void> _showNativeNotificationInBackground(
 }
 
 /// Fallback: Show CallKit notification (used on iOS and as Android fallback).
+///
+/// IMPORTANT: This runs in a background isolate where most app state is
+/// unavailable. All values must be safe for the Swift CallKit plugin, which
+/// force-unwraps certain fields. We sanitize the `extra` map to only contain
+/// String values to prevent "Unexpectedly found nil" crashes.
 Future<void> _showCallKitNotificationForBackground(
   Map<String, dynamic> orderMap,
 ) async {
-  final params = CallKitParams(
-    id: orderMap['id'] as String,
-    nameCaller: orderMap['restaurantName'] as String,
-    // CHANGE: Use FFAppConstants.AppName instead of hardcoded string
-    appName: FFAppConstants.AppName,
-    avatar: null,
-    handle: 'Amount: \u20B9${(orderMap['totalAmount'] as num).toStringAsFixed(2)}',
-    type: 0,
-    duration: ((orderMap['timeoutSeconds'] as int?) ?? 45) * 1000,
-    textAccept: 'Accept',
-    textDecline: 'Reject',
-    missedCallNotification: null,
-    extra: orderMap,
-    android: const AndroidParams(
-      isCustomNotification: true,
-      isShowLogo: true,
-      isShowFullLockedScreen: true,
-      ringtonePath: 'system_ringtone_default',
-      backgroundColor: '#1A237E',
-      backgroundUrl: null,
-      actionColor: '#4CAF50',
-      textColor: '#FFFFFF',
-      incomingCallNotificationChannelName: 'Incoming Orders',
-      missedCallNotificationChannelName: 'Missed Orders',
-      isShowCallID: false,
-    ),
-    ios: const IOSParams(
-      iconName: 'CallKitIcon',
-      handleType: 'generic',
-      supportsVideo: false,
-      maximumCallGroups: 1,
-      maximumCallsPerCallGroup: 1,
-      audioSessionMode: 'default',
-      audioSessionActive: true,
-      ringtonePath: 'system_ringtone_default',
-    ),
-  );
+  try {
+    // Sanitize values — use null-safe access with fallbacks.
+    // The Swift plugin force-unwraps these, so null = crash.
+    final String callId = (orderMap['id'] as String?) ?? 'ORD-${DateTime.now().millisecondsSinceEpoch}';
+    final String callerName = (orderMap['restaurantName'] as String?) ?? 'New Order';
+    final num totalAmount = (orderMap['totalAmount'] as num?) ?? 0.0;
+    final int timeoutSeconds = (orderMap['timeoutSeconds'] as int?) ?? 45;
 
-  await FlutterCallkitIncoming.showCallkitIncoming(params);
-  debugPrint(
-    '[FcmService] CallKit notification shown for: ${orderMap['id']}',
-  );
+    // CRITICAL: The Swift plugin crashes if `extra` contains non-String values
+    // (Lists, Maps, nested objects). Sanitize to String-only map.
+    final Map<String, String> sanitizedExtra = {};
+    orderMap.forEach((key, value) {
+      if (value != null) {
+        sanitizedExtra[key] = value.toString();
+      }
+    });
+
+    final params = CallKitParams(
+      id: callId,
+      nameCaller: callerName,
+      // Hardcoded — FFAppConstants may not be accessible in background isolate
+      appName: 'Qmanja Rider',
+      avatar: null,
+      handle: 'Amount: \u20B9${totalAmount.toStringAsFixed(2)}',
+      type: 0,
+      duration: timeoutSeconds * 1000,
+      textAccept: 'Accept',
+      textDecline: 'Reject',
+      missedCallNotification: null,
+      extra: sanitizedExtra,
+      android: const AndroidParams(
+        isCustomNotification: true,
+        isShowLogo: true,
+        isShowFullLockedScreen: true,
+        ringtonePath: 'system_ringtone_default',
+        backgroundColor: '#1A237E',
+        backgroundUrl: null,
+        actionColor: '#4CAF50',
+        textColor: '#FFFFFF',
+        incomingCallNotificationChannelName: 'Incoming Orders',
+        missedCallNotificationChannelName: 'Missed Orders',
+        isShowCallID: false,
+      ),
+      ios: const IOSParams(
+        iconName: 'CallKitIcon',
+        handleType: 'generic',
+        supportsVideo: false,
+        maximumCallGroups: 1,
+        maximumCallsPerCallGroup: 1,
+        audioSessionMode: 'default',
+        audioSessionActive: true,
+        ringtonePath: 'system_ringtone_default',
+      ),
+    );
+
+    await FlutterCallkitIncoming.showCallkitIncoming(params);
+    debugPrint(
+      '[FcmService] CallKit notification shown for: $callId',
+    );
+  } catch (e) {
+    debugPrint('[FcmService] ❌ CallKit showCallkitIncoming crashed: $e');
+    // Do NOT rethrow — a crash in background kills the entire app process
+  }
 }
