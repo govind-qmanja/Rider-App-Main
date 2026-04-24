@@ -84,8 +84,31 @@ class FcmService extends ChangeNotifier with WidgetsBindingObserver {
         sound: true,
       );
 
-      // FCM token is managed on the Home page — no need to handle it here.
-      debugPrint('[FcmService] Token management skipped (handled on Home page)');
+      // Store initial FCM token and listen for refreshes.
+      // On iOS, this will only succeed AFTER the APNs token is available.
+      try {
+        final initialToken = await FirebaseMessaging.instance.getToken();
+        if (initialToken != null && initialToken.isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_currentFcmTokenKey, initialToken);
+          debugPrint('[FcmService] Initial FCM token stored: ${initialToken.substring(0, 10)}...');
+        }
+      } catch (e) {
+        debugPrint('[FcmService] Failed to get initial token (may succeed later via Home page): $e');
+      }
+
+      // Listen for token refreshes — critical for iOS where tokens rotate more often.
+      // When the token changes, save locally and sync to backend immediately.
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+        debugPrint('[FcmService] FCM token refreshed: ${newToken.substring(0, 10)}...');
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_currentFcmTokenKey, newToken);
+          await _sendTokenToBackend(newToken);
+        } catch (e) {
+          debugPrint('[FcmService] Failed to handle token refresh: $e');
+        }
+      });
 
       // Foreground messages
       FirebaseMessaging.onMessage.listen((RemoteMessage message) {
