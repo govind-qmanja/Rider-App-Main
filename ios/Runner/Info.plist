@@ -64,7 +64,10 @@
 		<string>location</string>
 		<string>remote-notification</string>
 		<string>voip</string>
+		<string>audio</string>
 	</array>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>We need access to the microphone to handle order acceptance voice calls via CallKit.</string>
 
     <key>LSApplicationQueriesSchemes</key>
     <array>

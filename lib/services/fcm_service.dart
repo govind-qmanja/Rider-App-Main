@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:uuid/uuid.dart';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -729,8 +731,10 @@ Future<void> _showCallKitNotificationForBackground(
       }
     });
 
+    final String callUuid = const Uuid().v5(Uuid.NAMESPACE_URL, 'qmanja://order/$callId');
+
     final params = CallKitParams(
-      id: callId,
+      id: callUuid,
       nameCaller: callerName,
       // Hardcoded — FFAppConstants may not be accessible in background isolate
       appName: 'Qmanja Rider',
@@ -756,13 +760,12 @@ Future<void> _showCallKitNotificationForBackground(
         isShowCallID: false,
       ),
       ios: const IOSParams(
-        iconName: 'CallKitIcon',
         handleType: 'generic',
         supportsVideo: false,
         maximumCallGroups: 1,
         maximumCallsPerCallGroup: 1,
         audioSessionMode: 'default',
-        audioSessionActive: true,
+        audioSessionActive: false,
         ringtonePath: 'system_ringtone_default',
       ),
     );
@@ -770,9 +773,10 @@ Future<void> _showCallKitNotificationForBackground(
     // IMPORTANT: On cold launch from a push notification, the background handler
     // fires within milliseconds. The CallKit plugin's Swift singleton (CXProvider,
     // CXCallController) may not be fully initialized yet, causing a nil access
-    // crash at SwiftFlutterCallkitIncomingPlugin.swift:286. This delay gives the
-    // plugin time to complete registration before we invoke it.
-    await Future.delayed(const Duration(milliseconds: 500));
+    // crash at SwiftFlutterCallkitIncomingPlugin.swift:286. 
+    // We use a valid UUID for the call ID as required by iOS CallKit and 
+    // increase the delay to 1000ms to ensure the native side is ready.
+    await Future.delayed(const Duration(milliseconds: 1000));
     await FlutterCallkitIncoming.showCallkitIncoming(params);
     debugPrint(
       '[FcmService] CallKit notification shown for: $callId',

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:uuid/uuid.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_callkit_incoming/entities/call_event.dart';
@@ -199,7 +201,9 @@ class CallService {
       FlutterCallkitIncoming.endCall(callId);
     }
 
-    final orderId = callId ?? body?['extra']?['id'] as String?;
+    // Priority: Try to get the original ID from the `extra` map (which we sanitized in fcm_service/call_service)
+    // Fallback: Use the call ID (which might be the UUID or the original ID)
+    final orderId = body?['extra']?['id'] as String? ?? callId;
     if (orderId != null) {
       _onDeclineController.add(orderId);
       debugPrint('[CallService] Order declined (CallKit): $orderId');
@@ -212,7 +216,9 @@ class CallService {
       FlutterCallkitIncoming.endCall(callId);
     }
 
-    final orderId = callId ?? body?['extra']?['id'] as String?;
+    // Priority: Try to get the original ID from the `extra` map
+    // Fallback: Use the call ID
+    final orderId = body?['extra']?['id'] as String? ?? callId;
     if (orderId != null) {
       _onDeclineController.add(orderId);
       debugPrint('[CallService] Order timed out (CallKit): $orderId');
@@ -254,8 +260,11 @@ class CallService {
   Future<void> _showIosCallKit(OrderModel order) async {
     final amountText = '\u20B9${order.totalAmount.toStringAsFixed(2)}';
 
+    // Deterministic UUID based on order ID to ensure CallKit receives a valid UUID string.
+    final String callUuid = const Uuid().v5(Uuid.NAMESPACE_URL, 'qmanja://order/${order.id}');
+
     final params = CallKitParams(
-      id: order.id,
+      id: callUuid,
       nameCaller: order.restaurantName,
       appName: FFAppConstants.AppName,
       avatar: null,
@@ -265,24 +274,15 @@ class CallService {
       textAccept: 'Accept',
       textDecline: 'Reject',
       missedCallNotification: null,
-      // CRITICAL: Sanitize extra to String-only map. The Swift CallKit plugin
-      // force-unwraps values as Strings — passing List, double, or int causes
-      // EXC_BREAKPOINT crash (force-unwrapped nil). Same fix as in fcm_service.dart.
+      // CRITICAL: Sanitize extra to String-only map.
       extra: _sanitizeExtraForCallKit(order.toMap()),
       ios: const IOSParams(
-        iconName: 'CallKitIcon',
         handleType: 'generic',
         supportsVideo: false,
         maximumCallGroups: 1,
         maximumCallsPerCallGroup: 1,
         audioSessionMode: 'default',
-        audioSessionActive: true,
-        audioSessionPreferredSampleRate: 44100.0,
-        audioSessionPreferredIOBufferDuration: 0.005,
-        supportsDTMF: false,
-        supportsHolding: false,
-        supportsGrouping: false,
-        supportsUngrouping: false,
+        audioSessionActive: false,
         ringtonePath: 'system_ringtone_default',
       ),
     );
@@ -323,12 +323,14 @@ class CallService {
   }
 
   /// End a specific notification by order ID.
-  Future<void> endCall(String callId) async {
+  Future<void> endCall(String orderId) async {
     if (Platform.isAndroid) {
-      _dismissNativeNotification(callId);
+      _dismissNativeNotification(orderId);
     }
-    await FlutterCallkitIncoming.endCall(callId);
-    debugPrint('[CallService] Call/notification ended: $callId');
+    // We must use the same deterministic UUID logic to end the specific call
+    final String callUuid = const Uuid().v5(Uuid.NAMESPACE_URL, 'qmanja://order/$orderId');
+    await FlutterCallkitIncoming.endCall(callUuid);
+    debugPrint('[CallService] Ended call for order: $orderId (UUID: $callUuid)');
   }
 
   void _dismissNativeNotification(String orderId) {
