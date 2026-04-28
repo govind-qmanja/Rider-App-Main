@@ -265,7 +265,10 @@ class CallService {
       textAccept: 'Accept',
       textDecline: 'Reject',
       missedCallNotification: null,
-      extra: order.toMap(),
+      // CRITICAL: Sanitize extra to String-only map. The Swift CallKit plugin
+      // force-unwraps values as Strings — passing List, double, or int causes
+      // EXC_BREAKPOINT crash (force-unwrapped nil). Same fix as in fcm_service.dart.
+      extra: _sanitizeExtraForCallKit(order.toMap()),
       ios: const IOSParams(
         iconName: 'CallKitIcon',
         handleType: 'generic',
@@ -285,6 +288,20 @@ class CallService {
     );
 
     await FlutterCallkitIncoming.showCallkitIncoming(params);
+  }
+
+  /// Converts all values in a map to Strings for safe passage to the
+  /// Swift CallKit plugin, which force-unwraps `extra` dict values as Strings.
+  /// Non-String types (List, double, int, etc.) become nil after the cast,
+  /// triggering EXC_BREAKPOINT.
+  static Map<String, String> _sanitizeExtraForCallKit(Map<String, dynamic> map) {
+    final sanitized = <String, String>{};
+    map.forEach((key, value) {
+      if (value != null) {
+        sanitized[key] = value.toString();
+      }
+    });
+    return sanitized;
   }
 
   // ============================================================

@@ -63,6 +63,7 @@
 	<array>
 		<string>location</string>
 		<string>remote-notification</string>
+		<string>voip</string>
 	</array>
 
     <key>LSApplicationQueriesSchemes</key>

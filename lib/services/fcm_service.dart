@@ -767,6 +767,12 @@ Future<void> _showCallKitNotificationForBackground(
       ),
     );
 
+    // IMPORTANT: On cold launch from a push notification, the background handler
+    // fires within milliseconds. The CallKit plugin's Swift singleton (CXProvider,
+    // CXCallController) may not be fully initialized yet, causing a nil access
+    // crash at SwiftFlutterCallkitIncomingPlugin.swift:286. This delay gives the
+    // plugin time to complete registration before we invoke it.
+    await Future.delayed(const Duration(milliseconds: 500));
     await FlutterCallkitIncoming.showCallkitIncoming(params);
     debugPrint(
       '[FcmService] CallKit notification shown for: $callId',
