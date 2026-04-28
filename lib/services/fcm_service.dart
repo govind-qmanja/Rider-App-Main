@@ -766,7 +766,6 @@ Future<void> _showCallKitNotificationForBackground(
         maximumCallsPerCallGroup: 1,
         audioSessionMode: 'default',
         audioSessionActive: false,
-        ringtonePath: 'system_ringtone_default',
       ),
     );
 
