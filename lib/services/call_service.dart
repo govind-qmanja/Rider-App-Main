@@ -181,15 +181,16 @@ class CallService {
       final orderMap = Map<String, dynamic>.from(extra);
       final order = OrderModel.fromMap(orderMap);
 
-      // ── PRE-CHECK: Accept order via API ──
-      final success = await _acceptOrderViaApi(order.id);
-      if (!success) {
-        debugPrint('[CallService] Failed to accept order ${order.id} via API. Ignoring.');
-        return;
+      debugPrint('[CallService] iOS CallKit accept tapped for order: ${order.id}');
+      
+      // For iOS, do not accept the order via API. 
+      // Instead, just bring the app to the foreground so the rider can accept it in the app.
+      try {
+        await launchURL('qmanjarider://');
+      } catch (e) {
+        debugPrint('[CallService] Failed to launch app URL: $e');
       }
 
-      _onAcceptController.add(order);
-      debugPrint('[CallService] Order accepted (CallKit): ${order.id}');
     } catch (e) {
       debugPrint('[CallService] Failed to parse CallKit accept: $e');
     }
@@ -271,7 +272,7 @@ class CallService {
       handle: 'Amount: $amountText',
       type: 0,
       duration: order.timeoutDuration.inMilliseconds,
-      textAccept: 'Accept',
+      textAccept: 'Open App',
       textDecline: 'Reject',
       missedCallNotification: null,
       // CRITICAL: Sanitize extra to String-only map.
